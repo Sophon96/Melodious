@@ -6,10 +6,10 @@ import typing
 import discord
 
 # this is scuffed
-queue = collections.defaultdict(collections.deque)
-loop = collections.defaultdict(bool)
+# queue was moved below bc python moment
+loop: collections.defaultdict[int, bool] = collections.defaultdict(bool)
 to_play: asyncio.Queue[discord.VoiceClient] = asyncio.Queue()
-now_playing = collections.defaultdict(lambda: None)
+# now_playing was moved below bc python moment
 
 
 class InvidiousVideo(typing.TypedDict):
@@ -17,6 +17,14 @@ class InvidiousVideo(typing.TypedDict):
     videoId: str
     author: str
     authorUrl: str
+
+
+# even more scuffed
+queue: collections.defaultdict[
+    int, collections.deque[InvidiousVideo]] = collections.defaultdict(
+        collections.deque)
+now_playing: collections.defaultdict[int, typing.Union[
+    InvidiousVideo, None]] = collections.defaultdict(lambda: None)
 
 
 class SearchDropdown(discord.ui.Select):
@@ -54,10 +62,15 @@ class SearchDropdown(discord.ui.Select):
         #     (item for item in self.view.children if item.label == "Confirm"))
         # confirm_button.disabled = False
         # await interaction.edit_original_response(view=self.view)
+        if interaction.guild_id is None:
+            raise RuntimeError(
+                "Interaction guild id is None when trying to add a song to the queue. Solar flare occured?"
+            )
         queue[interaction.guild_id].append(video)
         await interaction.delete_original_response()
         await interaction.followup.send(
-            f"Added [{video['title']}](<https://youtube.com/watch?v={video['videoId']}>) to the queue!")
+            f"Added [{video['title']}](<https://youtube.com/watch?v={video['videoId']}>) to the queue!"
+        )
 
 
 # class SearchDropdownView(discord.ui.View):
@@ -98,13 +111,19 @@ class QueuePagerView(discord.ui.View):
         super().__init__()
         self.page = 0
         next((item for item in self.children
-              if item.label == "Next")).disabled = disable_next
+              if isinstance(item, discord.ui.Button) and item.label == "Next"
+              )).disabled = disable_next
 
     @discord.ui.button(label="Back", disabled=True)
     async def last_page(self, interaction: discord.Interaction,
                         button: discord.ui.Button):
         await interaction.response.defer()
         self.page -= 1
+
+        if interaction.guild_id is None:
+            raise RuntimeError(
+                "Interaction guild id is None when trying to go back a page. Solar flare occured?"
+            )
         guild_queue = queue[interaction.guild_id]
 
         if len(guild_queue) == 0:
@@ -112,19 +131,31 @@ class QueuePagerView(discord.ui.View):
                 content="Nothing in queue!", view=None)
         else:
             q0 = list(
-                itertools.islice(guild_queue, 10 * self.page,
-                                 10 * (self.page + 1)))
-            resp = "\n".join(
-                f"- [{video['title']}](<https://youtube.com/watch?v={video['videoId']}>)\n - By [{video['author']}](<https://youtube.com{video['authorUrl']}>)"
-                for video in q0)
+                itertools.islice(guild_queue, 25 * self.page,
+                                 25 * (self.page + 1)))
+            embed = discord.Embed(colour=discord.Colour.orange(),
+                                  title="Queued Tracks",
+                                  timestamp=interaction.created_at)
+            for track in q0:
+                embed.add_field(
+                    name=track["title"],
+                    value=
+                    f"By [{track['author']}](https://youtube.com{track['authorUrl']})\n"
+                    f"[View on YouTube](https://youtu.be/{track['videoId']})",
+                    inline=False)
             button.disabled = bool(self.page)
-            await interaction.edit_original_response(content=resp, view=self)
+            await interaction.edit_original_response(embed=embed, view=self)
 
     @discord.ui.button(label="Next")
     async def next_page(self, interaction: discord.Interaction,
                         button: discord.ui.Button):
         await interaction.response.defer()
         self.page += 1
+
+        if interaction.guild_id is None:
+            raise RuntimeError(
+                "Interaction guild id is None when trying to go forward a page. Solar flare occured?"
+            )
         guild_queue = queue[interaction.guild_id]
 
         if len(guild_queue) == 0:
@@ -132,10 +163,17 @@ class QueuePagerView(discord.ui.View):
                 content="Nothing in queue!", view=None)
         else:
             q0 = list(
-                itertools.islice(guild_queue, 10 * self.page,
-                                 10 * (self.page + 1)))
-            resp = "\n".join(
-                f"- [{video['title']}](<https://youtube.com/watch?v={video['videoId']}>)\n - By [{video['author']}](<https://youtube.com{video['authorUrl']}>)"
-                for video in q0)
-            button.disabled = 10 * (self.page + 1) > len(guild_queue)
-            await interaction.edit_original_response(content=resp, view=self)
+                itertools.islice(guild_queue, 25 * self.page,
+                                 25 * (self.page + 1)))
+            embed = discord.Embed(colour=discord.Colour.orange(),
+                                  title="Queued Tracks",
+                                  timestamp=interaction.created_at)
+            for track in q0:
+                embed.add_field(
+                    name=track["title"],
+                    value=
+                    f"By [{track['author']}](https://youtube.com{track['authorUrl']})\n"
+                    f"[View on YouTube](https://youtu.be/{track['videoId']})",
+                    inline=False)
+            button.disabled = 25 * (self.page + 1) > len(guild_queue)
+            await interaction.edit_original_response(embed=embed, view=self)
