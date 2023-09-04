@@ -1,0 +1,11 @@
+manifest_version = 1
+
+[module]
+name = "Melodious"
+id = "melodious"
+description = "An invidious melody: a simple music module for Breadcord streaming from Invidious"
+version = "0.1.0"
+license = "private"
+authors = ["Brandon Qi (Sophon96)"]
+requirements = ["aiohttp==3.8.*", "discord.py[voice]==2.3.*"]
+permissions = ["connect", "embed_links", "read_message_history", "read_messages", "send_messages", "speak", "use_external_emojis"]

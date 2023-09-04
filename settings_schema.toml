@@ -1,0 +1,5 @@
+# Domain of Invidious instance to use. Must have API v1 enabled.
+invidious_url = "https://tube.catvibers.me"
+
+# Color of the embeds
+embed_color = "#d16323"
